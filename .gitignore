@@ -1,0 +1,10 @@
+/.bsp/sbt.json
+/.idea/libraries
+/project/project/target
+/project/target
+/target
+/.idea/scala_settings.xml
+/.idea/modules.xml
+/.idea/misc.xml
+/.idea/sbt.xml
+
