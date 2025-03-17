@@ -27,19 +27,30 @@ class Scan protected (
   )
 
   private var prog = getRowType.getFieldList.asScala.map(_ => 0)
+  private var index = 0
 
   /**
     * @inheritdoc
     */
-  override def open(): Unit = ???
+  override def open(): Unit =
+    index = 0
 
   /**
     * @inheritdoc
     */
-  override def next(): Option[Tuple] = ???
+  override def next(): Option[Tuple] =
+    scannable match
+      case r: RowStore => 
+        if index < scannable.getRowCount then
+          index += 1
+          Some(r.getRow(index - 1))
+        else
+          None
+      case _ => throw NotImplementedError("🚩 Stores other than RowStore are not yet implemented.")
+    
 
   /**
     * @inheritdoc
     */
-  override def close(): Unit = ???
+  override def close(): Unit = ()
 }

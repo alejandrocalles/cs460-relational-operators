@@ -29,15 +29,18 @@ class Filter protected (
   /**
     * @inheritdoc
     */
-  override def open(): Unit = ???
+  override def open(): Unit =
+    input.open()
 
   /**
     * @inheritdoc
     */
-  override def next(): Option[Tuple] = ???
+  override def next(): Option[Tuple] =
+    input.next().flatMap(tuple => if predicate(tuple) then Some(tuple) else next())
 
   /**
     * @inheritdoc
     */
-  override def close(): Unit = ???
+  override def close(): Unit =
+    input.close()
 }

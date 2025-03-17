@@ -22,18 +22,49 @@ class Join(
     * to implement joins
     */
 
-  /**
-    * @inheritdoc
-    */
-  override def open(): Unit = ???
+  private var currentLeft = Option.empty[Tuple]
+
+  private def mergeTuples(left: Tuple, right: Tuple): Option[Tuple] =
+    val keys = getLeftKeys lazyZip getRightKeys
+    if keys.forall (left(_) equals right(_)) then
+      Some(left ++ right.zipWithIndex.collect(
+        (elem, idx) => Option.when (!(getRightKeys contains idx)) (elem)
+      ))
+    else
+      None
 
   /**
     * @inheritdoc
     */
-  override def next(): Option[Tuple] = ???
+  override def open(): Unit =
+    left.open()
+    right.open()
 
   /**
     * @inheritdoc
     */
-  override def close(): Unit = ???
+  override def next(): Option[Tuple] =
+    currentLeft match
+      case None =>
+        // Pick the next tuple from the left relation
+        left.next() match
+          case None => None
+          case nextLeft: Some[Tuple] =>
+            currentLeft = nextLeft
+            next()
+      case Some(leftTuple) =>
+        // Pick the next tuple from the right relation
+        right.next() match
+          case None =>
+            currentLeft = None
+            next()
+          case Some(rightTuple) =>
+            mergeTuples(leftTuple, rightTuple) orElse next()
+
+  /**
+    * @inheritdoc
+    */
+  override def close(): Unit =
+    left.close()
+    right.close()
 }
