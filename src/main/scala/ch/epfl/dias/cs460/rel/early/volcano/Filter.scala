@@ -1,7 +1,7 @@
 package ch.epfl.dias.cs460.rel.early.volcano
 
 import ch.epfl.dias.cs460.helpers.builder.skeleton
-import ch.epfl.dias.cs460.helpers.rel.RelOperator.{NilTuple, Tuple}
+import ch.epfl.dias.cs460.helpers.rel.RelOperator.Tuple
 import org.apache.calcite.rex.RexNode
 
 /**
@@ -36,7 +36,12 @@ class Filter protected (
     * @inheritdoc
     */
   override def next(): Option[Tuple] =
-    input.next().flatMap(tuple => if predicate(tuple) then Some(tuple) else next())
+    var result = Option.empty[Tuple]
+    while
+      result = input.next()
+      result exists (!predicate(_))
+    do ()
+    result
 
   /**
     * @inheritdoc

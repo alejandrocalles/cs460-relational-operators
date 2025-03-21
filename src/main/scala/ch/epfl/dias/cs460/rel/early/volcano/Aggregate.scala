@@ -1,11 +1,12 @@
 package ch.epfl.dias.cs460.rel.early.volcano
 
 import ch.epfl.dias.cs460.helpers.builder.skeleton
-import ch.epfl.dias.cs460.helpers.rel.RelOperator.Tuple
+import ch.epfl.dias.cs460.helpers.rel.RelOperator.{Elem, Tuple}
 import ch.epfl.dias.cs460.helpers.rex.AggregateCall
 import org.apache.calcite.util.ImmutableBitSet
 
-import scala.jdk.CollectionConverters._
+import scala.collection.mutable
+import scala.jdk.CollectionConverters.*
 
 /**
   * @inheritdoc
@@ -28,18 +29,43 @@ class Aggregate protected (
     * groupMapReduce
     */
 
-  /**
-    * @inheritdoc
-    */
-  override def open(): Unit = ???
+  private def groupByKey(t: Tuple): Iterable[Elem] =
+    groupSet.asScala.map(t(_))
+
+  private val groups = mutable.Map.empty[Iterable[Elem], Iterable[Tuple]]
+
+  private val emptyAggregatedTuple = aggCalls map (_.emptyValue)
+
+  private val hasEmptyInput = input.isEmpty
 
   /**
     * @inheritdoc
     */
-  override def next(): Option[Tuple] = ???
+  override def open(): Unit =
+    groups.clear()
+    if hasEmptyInput then
+      groups += ((Iterable.empty[Elem], Iterable.empty[Tuple]))
+    else
+      groups ++= input.groupBy(tuple => groupSet.asScala.map(tuple(_)))
+
 
   /**
     * @inheritdoc
     */
-  override def close(): Unit = ???
+  override def next(): Option[Tuple] =
+    groups.keysIterator.nextOption map { key =>
+      val tuples = (groups remove key).get
+      tuples map {
+        tuple => aggCalls map (_ getArgument tuple)
+      } reduceOption { (t1, t2) =>
+        for (call, idx) <- aggCalls.zipWithIndex
+          yield call reduce (t1(idx), t2(idx))
+      } map (key.toIndexedSeq ++ _) getOrElse emptyAggregatedTuple
+    }
+
+  /**
+    * @inheritdoc
+    */
+  override def close(): Unit =
+    groups.clear()
 }

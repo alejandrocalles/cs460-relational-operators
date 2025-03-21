@@ -1,11 +1,13 @@
 package ch.epfl.dias.cs460.rel.early.volcano
 
 import ch.epfl.dias.cs460.helpers.builder.skeleton
-import ch.epfl.dias.cs460.helpers.rel.RelOperator.{Elem, Tuple}
+import ch.epfl.dias.cs460.helpers.rel.RelOperator.Tuple
 import org.apache.calcite.rel.{RelCollation, RelFieldCollation}
 
+import scala.collection.mutable
+import scala.collection.mutable.PriorityQueue
 import scala.jdk.CollectionConverters.*
-import scala.util.Sorting
+
 /**
   * @inheritdoc
   * @see [[ch.epfl.dias.cs460.helpers.builder.skeleton.Sort]]
@@ -24,21 +26,28 @@ class Sort protected (
     * Hint: See superclass documentation for info on collation i.e.
     * sort keys and direction
     */
+  private val relFieldCollations = LazyList.from(collation.getFieldCollations.asScala)
 
-  private object LocalOrder extends Ordering[Tuple] {
+  private object TupleOrder extends Ordering[Tuple] {
+    /**
+     * Compares `x` to `y` according to this relation's `collation`.
+     * @param x The first tuple.
+     * @param y The second tuple.
+     * @return A positive integer if `x > y`, `0` if they are equal, and a negative integer if `x < y`.
+     */
     def compare(x: Tuple, y: Tuple): Int =
-      collation.getFieldCollations.asScala.map(
-        fieldCollation =>
-          val index = fieldCollation.getFieldIndex
-          (x(index), y(index)) match
-            case (x: Comparable[_], y: Comparable[_]) =>
-              (if fieldCollation.direction.isDescending then -1 else 1)
+      def compareFields(x: Tuple, y: Tuple, fieldCollation: RelFieldCollation): Int =
+        val index = fieldCollation.getFieldIndex
+        (x(index), y(index)) match
+          case (x: Comparable[_], y: Comparable[_]) =>
+            (if fieldCollation.direction.isDescending then -1 else 1)
               * RelFieldCollation.compare(x, y, fieldCollation.nullDirection.nullComparison)
-            case _ => throw IllegalArgumentException("🚩 Cannot sort on fields that are not comparable.")
-      ).foldLeft(0)((comparisonResult, accumulator) => if accumulator != 0 then accumulator else comparisonResult)
+          case _ => throw IllegalArgumentException("🚩 Cannot sort on fields that are not comparable.")
+      relFieldCollations map (compareFields(x, y, _)) find (_ != 0) getOrElse 0
   }
 
-  private var internalArray = Array.empty[Tuple]
+  // A min heap (i.e. a priority queue with the reverse order) to sort the input
+  private var queue = mutable.PriorityQueue.empty[Tuple](TupleOrder.reverse)
   private var index = 0
 
   /**
@@ -46,25 +55,24 @@ class Sort protected (
     */
   override def open(): Unit =
     input.open()
-    internalArray = input.drop(offset.getOrElse(0)).toArray
-    Sorting.stableSort(internalArray)(LocalOrder)
+    queue = queue.empty // For the sake of correctness
+    queue addAll input.drop(offset getOrElse 0)
     index = 0
 
   /**
     * @inheritdoc
     */
   override def next(): Option[Tuple] =
-    if index < fetch.getOrElse(internalArray.length) then
+    Option.when (queue.nonEmpty && (fetch forall (index < _))) {
       index += 1
-      Some(internalArray(index - 1))
-    else
-      None
+      queue.dequeue()
+    }
 
   /**
     * @inheritdoc
     */
   override def close(): Unit =
     index = 0
-    internalArray = Array.empty[Tuple]
+    queue = queue.empty
     input.close()
 }

@@ -1,11 +1,9 @@
 package ch.epfl.dias.cs460.rel.early.volcano
 
 import ch.epfl.dias.cs460.helpers.builder.skeleton
-import ch.epfl.dias.cs460.helpers.rel.RelOperator.{NilTuple, Tuple}
+import ch.epfl.dias.cs460.helpers.rel.RelOperator.Tuple
 import ch.epfl.dias.cs460.helpers.store.{RowStore, ScannableTable, Store}
 import org.apache.calcite.plan.{RelOptCluster, RelOptTable, RelTraitSet}
-
-import scala.jdk.CollectionConverters._
 
 /**
   * @inheritdoc
@@ -26,7 +24,6 @@ class Scan protected (
     table.unwrap(classOf[ScannableTable])
   )
 
-  private var prog = getRowType.getFieldList.asScala.map(_ => 0)
   private var index = 0
 
   /**
@@ -40,17 +37,16 @@ class Scan protected (
     */
   override def next(): Option[Tuple] =
     scannable match
-      case r: RowStore => 
-        if index < scannable.getRowCount then
+      case st: RowStore =>
+        Option.when (index < scannable.getRowCount) {
           index += 1
-          Some(r.getRow(index - 1))
-        else
-          None
+          st.getRow(index - 1)
+        }
       case _ => throw NotImplementedError("🚩 Stores other than RowStore are not yet implemented.")
-    
 
   /**
     * @inheritdoc
     */
-  override def close(): Unit = ()
+  override def close(): Unit =
+    index = 0
 }
