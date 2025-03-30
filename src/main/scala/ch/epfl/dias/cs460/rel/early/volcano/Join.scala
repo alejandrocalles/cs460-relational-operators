@@ -26,37 +26,46 @@ class Join(
     * to implement joins
     */
 
-  private val rightBuffer = mutable.Queue.empty[Tuple]
-
-  private def mergeTuples(leftTuple: Tuple, rightTuple: Tuple): Option[Tuple] =
-    Option.when (
-      (getLeftKeys lazyZip getRightKeys) forall (leftTuple(_) equals rightTuple(_))
-    ) (leftTuple ++ rightTuple)
+  private val rightHashMap = mutable.HashMap.empty[Tuple, Iterable[Tuple]]
+  private val outputBuffer = mutable.Queue.empty[Tuple]
 
   /**
     * @inheritdoc
     */
   override def open(): Unit =
-    rightBuffer.clear()
+    rightHashMap.clear()
+    rightHashMap ++= (
+      right groupBy { rightTuple => getRightKeys map (rightTuple(_)) }
+    )
+    outputBuffer.clear()
     left.open()
 
   /**
     * @inheritdoc
     */
   override def next(): Option[Tuple] =
-    if rightBuffer.isEmpty then
-      // Get the next left tuple and fill the right buffer
-      left.next() flatMap { leftTuple =>
-        rightBuffer ++= (right map (mergeTuples(leftTuple, _)) collect { case Some(tuple) => tuple })
+
+    if outputBuffer.isEmpty then
+      // Find the next left tuple that matches some right tuple
+      val matchingTupleBuffers = LazyList continually left.next() takeWhile (_.isDefined) map (_.get) map { leftTuple =>
+        val key = getLeftKeys map (leftTuple(_))
+        rightHashMap get key map {
+          for rightTuple <- _
+            yield leftTuple ++ rightTuple
+        }
+      } collect { case Some(matchingTuples) => matchingTuples }
+      matchingTupleBuffers.headOption flatMap { matchingTuples =>
+        outputBuffer ++= matchingTuples
         next()
       }
     else
-      Some(rightBuffer.dequeue())
+      Some(outputBuffer.dequeue())
 
   /**
     * @inheritdoc
     */
   override def close(): Unit =
     left.close()
-    rightBuffer.clear()
+    outputBuffer.clear()
+    rightHashMap.clear()
 }
