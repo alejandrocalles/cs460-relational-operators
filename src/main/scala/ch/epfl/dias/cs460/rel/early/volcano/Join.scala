@@ -4,6 +4,9 @@ import ch.epfl.dias.cs460.helpers.builder.skeleton
 import ch.epfl.dias.cs460.helpers.rel.RelOperator.Tuple
 import org.apache.calcite.rex.RexNode
 
+import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
+
 /**
   * @inheritdoc
   * @see [[ch.epfl.dias.cs460.helpers.builder.skeleton.Join]]
@@ -23,7 +26,7 @@ class Join(
     * to implement joins
     */
 
-  private var currentLeft = Option.empty[Tuple]
+  private val rightBuffer = mutable.Queue.empty[Tuple]
 
   private def mergeTuples(leftTuple: Tuple, rightTuple: Tuple): Option[Tuple] =
     Option.when (
@@ -34,40 +37,26 @@ class Join(
     * @inheritdoc
     */
   override def open(): Unit =
+    rightBuffer.clear()
     left.open()
-    right.open()
-    currentLeft = None
 
   /**
     * @inheritdoc
     */
   override def next(): Option[Tuple] =
-    currentLeft match
-      case None =>
-        // Pick the next tuple from the left relation
-        left.next() match
-          case None =>
-            None
-          case nextLeft: Some[Tuple] =>
-            currentLeft = nextLeft
-            next()
-
-      case Some(leftTuple) =>
-        // Pick the next tuple from the right relation
-        right.next() match
-          case None =>
-            currentLeft = None
-            right.close()
-            right.open()
-            next()
-          case Some(rightTuple) =>
-            mergeTuples(leftTuple, rightTuple) orElse next()
+    if rightBuffer.isEmpty then
+      // Get the next left tuple and fill the right buffer
+      left.next() flatMap { leftTuple =>
+        rightBuffer ++= (right map (mergeTuples(leftTuple, _)) collect { case Some(tuple) => tuple })
+        next()
+      }
+    else
+      Some(rightBuffer.dequeue())
 
   /**
     * @inheritdoc
     */
   override def close(): Unit =
-    currentLeft = None
-    right.close()
     left.close()
+    rightBuffer.clear()
 }
