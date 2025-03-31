@@ -7,6 +7,7 @@ import ch.epfl.dias.cs460.helpers.rel.late.volcano.naive.Operator
 import ch.epfl.dias.cs460.helpers.store.late.LateStandaloneColumnStore
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex.RexNode
+import scala.::
 
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
@@ -25,17 +26,25 @@ class Fetch protected (
   /**
     * @inheritdoc
     */
-  override def open(): Unit = ???
+  override def open(): Unit =
+    input.open()
 
   /**
     * @inheritdoc
     */
-  override def next(): Option[LateTuple] = ???
+  override def next(): Option[LateTuple] =
+    input.next() map { inputTuple =>
+      val (prefix, suffix) = inputTuple.value splitAt column.getColumnIndex
+      var outputTuple = prefix :+ column.getElement(inputTuple.vid) ++ suffix
+      projects foreach { _ => outputTuple = evaluator(outputTuple) }
+      LateTuple(inputTuple.vid, outputTuple)
+    }
 
   /**
     * @inheritdoc
     */
-  override def close(): Unit = ???
+  override def close(): Unit =
+    input.close()
 }
 
 object Fetch {
