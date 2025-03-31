@@ -21,11 +21,6 @@ class Join(
     ](left, right, condition)
     with ch.epfl.dias.cs460.helpers.rel.early.volcano.Operator {
 
-  /**
-    * Hint: you need to use methods getLeftKeys and getRightKeys
-    * to implement joins
-    */
-
   private val rightHashMap = mutable.HashMap.empty[Tuple, Iterable[Tuple]]
   private val outputBuffer = mutable.Queue.empty[Tuple]
 
@@ -44,7 +39,6 @@ class Join(
     * @inheritdoc
     */
   override def next(): Option[Tuple] =
-
     if outputBuffer.isEmpty then
       // Find the next left tuple that matches some right tuple
       val matchingTupleBuffers = LazyList continually left.next() takeWhile (_.isDefined) map (_.get) map { leftTuple =>

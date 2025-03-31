@@ -22,15 +22,20 @@ class Drop protected(
   /**
     * @inheritdoc
     */
-  override def open(): Unit = ???
+  override def open(): Unit =
+    input.open()
 
   /**
     * @inheritdoc
     */
-  override def next(): Option[Tuple] = ???
+  override def next(): Option[Tuple] =
+    input.next() match
+      case Some(LateTuple(vid, value)) => Some(value)
+      case None => None
 
   /**
     * @inheritdoc
     */
-  override def close(): Unit = ???
+  override def close(): Unit =
+    input.close()
 }
