@@ -29,15 +29,21 @@ class LateFilter protected (
   /**
     * @inheritdoc
     */
-  override def open(): Unit = ???
+  override def open(): Unit =
+    input.open()
 
   /**
     * @inheritdoc
     */
-  override def next(): Option[LateTuple] = ???
+  override def next(): Option[LateTuple] =
+    val iterator = LazyList continually input.next() takeWhile (_.isDefined) map (_.get) filter {
+      tuple => predicate(tuple.value)
+    }
+    iterator.headOption
 
   /**
     * @inheritdoc
     */
-  override def close(): Unit = ???
+  override def close(): Unit =
+    input.close()
 }

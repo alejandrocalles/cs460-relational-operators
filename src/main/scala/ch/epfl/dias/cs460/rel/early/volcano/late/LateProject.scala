@@ -36,15 +36,18 @@ class LateProject protected (
   /**
     * @inheritdoc
     */
-  override def open(): Unit = ???
+  override def open(): Unit =
+    input.open()
 
   /**
     * @inheritdoc
     */
-  override def next(): Option[LateTuple] = ???
+  override def next(): Option[LateTuple] =
+    input.next() map { case LateTuple(vid, value) => LateTuple(vid, evaluator(value)) }
 
   /**
     * @inheritdoc
     */
-  override def close(): Unit = ???
+  override def close(): Unit =
+    input.close()
 }
