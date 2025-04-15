@@ -4,7 +4,7 @@ import ch.epfl.dias.cs460.helpers.builder.skeleton.logical.{LogicalFetch, Logica
 import ch.epfl.dias.cs460.helpers.qo.rules.skeleton.LazyFetchFilterRuleSkeleton
 import ch.epfl.dias.cs460.helpers.store.late.rel.late.volcano.LateColumnScan
 import org.apache.calcite.plan.{RelOptRuleCall, RelRule}
-import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.{InvalidRelException, RelNode}
 import org.apache.calcite.rel.logical.LogicalFilter
 
 /**
@@ -21,7 +21,15 @@ class LazyFetchFilterRule protected (config: RelRule.Config)
     config
   ) {
 
-  override def onMatchHelper(call: RelOptRuleCall): RelNode = ???
+  override def onMatchHelper(call: RelOptRuleCall): RelNode =
+    // TODO: filter doesn't seem to be constructed in the proper way. How to ensure the condition applies to the new columns?
+    val stitch = call.rel[LogicalStitch](0)
+    (call.rel[RelNode](1), call.rel[RelNode](2), call.rel[RelNode](3)) match
+      case (filter: LogicalFilter, scan: LateColumnScan, input) =>
+        filter.copy(filter.getTraitSet, LogicalFetch(input, scan.deriveRowType, scan.getColumn, None), filter.getCondition)
+      case (input, filter: LogicalFilter, scan: LateColumnScan) =>
+        filter.copy(filter.getTraitSet, LogicalFetch(input, scan.deriveRowType, scan.getColumn, None), filter.getCondition)
+      case _ => throw InvalidRelException("🚩 Expected a LateColumnScan as a child of Stitch, but none were found.")
 }
 
 object LazyFetchFilterRule {

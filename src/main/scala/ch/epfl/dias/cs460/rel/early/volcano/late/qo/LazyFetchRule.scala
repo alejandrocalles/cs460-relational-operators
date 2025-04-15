@@ -2,9 +2,14 @@ package ch.epfl.dias.cs460.rel.early.volcano.late.qo
 
 import ch.epfl.dias.cs460.helpers.builder.skeleton.logical.{LogicalFetch, LogicalStitch}
 import ch.epfl.dias.cs460.helpers.qo.rules.skeleton.LazyFetchRuleSkeleton
+import ch.epfl.dias.cs460.helpers.rel.late.volcano.naive.Operator
 import ch.epfl.dias.cs460.helpers.store.late.rel.late.volcano.LateColumnScan
 import org.apache.calcite.plan.{RelOptRuleCall, RelRule}
-import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.{InvalidRelException, RelNode}
+import org.apache.calcite.rex.RexNode
+
+import scala.jdk.CollectionConverters._
+
 
 /**
   * RelRule (optimization rule) that finds an operator that stitches a new column
@@ -18,7 +23,12 @@ class LazyFetchRule protected (config: RelRule.Config)
   extends LazyFetchRuleSkeleton(
     config
   ) {
-  override def onMatchHelper(call: RelOptRuleCall): RelNode = ???
+  override def onMatchHelper(call: RelOptRuleCall): RelNode =
+    val stitch = call.rel[LogicalStitch](0)
+    (call.rel[RelNode](1), call.rel[RelNode](2)) match
+      case (left: LateColumnScan, right) => LogicalFetch(right, left.deriveRowType, left.getColumn, None)
+      case (left, right: LateColumnScan) => LogicalFetch(left, right.deriveRowType, right.getColumn, None)
+      case _ => throw InvalidRelException("🚩 Expected a LateColumnScan as a child of Stitch, but none were found.")
 }
 
 object LazyFetchRule {

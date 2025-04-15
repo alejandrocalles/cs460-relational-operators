@@ -4,7 +4,7 @@ import ch.epfl.dias.cs460.helpers.builder.skeleton.logical.{LogicalFetch, Logica
 import ch.epfl.dias.cs460.helpers.qo.rules.skeleton.LazyFetchProjectRuleSkeleton
 import ch.epfl.dias.cs460.helpers.store.late.rel.late.volcano.LateColumnScan
 import org.apache.calcite.plan.{RelOptRuleCall, RelRule}
-import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.{InvalidRelException, RelNode}
 import org.apache.calcite.rel.logical.LogicalProject
 
 /**
@@ -21,7 +21,14 @@ class LazyFetchProjectRule protected (config: RelRule.Config)
     config
   ) {
 
-  override def onMatchHelper(call: RelOptRuleCall): RelNode = ???
+  override def onMatchHelper(call: RelOptRuleCall): RelNode =
+    val stitch = call.rel[LogicalStitch](0)
+    (call.rel[RelNode](1), call.rel[RelNode](2), call.rel[RelNode](3)) match
+      case (project: LogicalProject, scan: LateColumnScan, input) =>
+        LogicalFetch(input, scan.deriveRowType, scan.getColumn, Some(project.getProjects))
+      case (input, project: LogicalProject, scan: LateColumnScan) =>
+        LogicalFetch(input, scan.deriveRowType, scan.getColumn, Some(project.getProjects))
+      case _ => throw InvalidRelException("🚩 Expected a LateColumnScan as a child of Stitch, but none were found.")
 }
 
 object LazyFetchProjectRule {
