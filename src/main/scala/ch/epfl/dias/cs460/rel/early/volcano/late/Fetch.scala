@@ -7,7 +7,6 @@ import ch.epfl.dias.cs460.helpers.rel.late.volcano.naive.Operator
 import ch.epfl.dias.cs460.helpers.store.late.LateStandaloneColumnStore
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex.RexNode
-import scala.::
 
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
@@ -20,8 +19,8 @@ class Fetch protected (
   ch.epfl.dias.cs460.helpers.rel.late.volcano.naive.Operator
 ](input, fetchType, column, projects)
   with ch.epfl.dias.cs460.helpers.rel.late.volcano.naive.Operator {
-  lazy val evaluator: Tuple => Tuple =
-    eval(projects.get.asScala.toIndexedSeq, fetchType)
+  private lazy val evaluator: Option[Tuple => Tuple] =
+    projects map { ps => eval(ps.asScala.toIndexedSeq, fetchType) }
 
   /**
     * @inheritdoc
@@ -35,8 +34,9 @@ class Fetch protected (
   override def next(): Option[LateTuple] =
     input.next() map { inputTuple =>
       val (prefix, suffix) = inputTuple.value splitAt column.getColumnIndex
-      var outputTuple = prefix :+ column.getElement(inputTuple.vid) ++ suffix
-      projects foreach { _ => outputTuple = evaluator(outputTuple) }
+      val element = IndexedSeq(column.getElement(inputTuple.vid).get)
+      val infix = evaluator map (_(element)) getOrElse element
+      var outputTuple = prefix ++ infix ++ suffix
       LateTuple(inputTuple.vid, outputTuple)
     }
 

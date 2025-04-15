@@ -39,7 +39,8 @@ class LateFilter protected (
     val iterator = LazyList continually input.next() takeWhile (_.isDefined) map (_.get) filter {
       tuple => predicate(tuple.value)
     }
-    iterator.headOption
+    val res = iterator.headOption
+    res
 
   /**
     * @inheritdoc

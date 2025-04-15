@@ -58,7 +58,7 @@ class LateJoin(
   override def next(): Option[LateTuple] =
     if outputBuffer.isEmpty then
       // Find the next left tuple that matches some right tuple
-      val matchingTupleBuffers = LazyList continually left.next() filter (_.isDefined) map (_.get) map { leftTuple =>
+      val matchingTupleBuffers = LazyList continually left.next() takeWhile (_.isDefined) map (_.get) map { leftTuple =>
         val key = getLeftKeys map (leftTuple.value(_))
         rightHashMap get key map {
           for rightTuple <- _
