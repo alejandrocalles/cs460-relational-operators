@@ -6,6 +6,7 @@ import ch.epfl.dias.cs460.helpers.store.late.rel.late.volcano.LateColumnScan
 import org.apache.calcite.plan.{RelOptRuleCall, RelRule}
 import org.apache.calcite.rel.{InvalidRelException, RelNode}
 import org.apache.calcite.rel.logical.LogicalFilter
+import org.apache.calcite.rex.RexUtil
 
 /**
   * RelRule (optimization rule) that finds a reconstruct operator that
@@ -26,9 +27,11 @@ class LazyFetchFilterRule protected (config: RelRule.Config)
     val stitch = call.rel[LogicalStitch](0)
     (call.rel[RelNode](1), call.rel[RelNode](2), call.rel[RelNode](3)) match
       case (filter: LogicalFilter, scan: LateColumnScan, input) =>
-        filter.copy(filter.getTraitSet, LogicalFetch(input, scan.deriveRowType, scan.getColumn, None), filter.getCondition)
+        val shiftedCondition = RexUtil.shift(filter.getCondition, scan.getColumn.getColumnIndex)
+        filter.copy(filter.getTraitSet, LogicalFetch(input, scan.deriveRowType, scan.getColumn, None), shiftedCondition)
       case (input, filter: LogicalFilter, scan: LateColumnScan) =>
-        filter.copy(filter.getTraitSet, LogicalFetch(input, scan.deriveRowType, scan.getColumn, None), filter.getCondition)
+        val shiftedCondition = RexUtil.shift(filter.getCondition, scan.getColumn.getColumnIndex)
+        filter.copy(filter.getTraitSet, LogicalFetch(input, scan.deriveRowType, scan.getColumn, None), shiftedCondition)
       case _ => throw InvalidRelException("🚩 Expected a LateColumnScan as a child of Stitch, but none were found.")
 }
 

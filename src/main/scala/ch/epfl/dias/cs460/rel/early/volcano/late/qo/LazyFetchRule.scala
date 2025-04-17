@@ -6,9 +6,9 @@ import ch.epfl.dias.cs460.helpers.rel.late.volcano.naive.Operator
 import ch.epfl.dias.cs460.helpers.store.late.rel.late.volcano.LateColumnScan
 import org.apache.calcite.plan.{RelOptRuleCall, RelRule}
 import org.apache.calcite.rel.{InvalidRelException, RelNode}
-import org.apache.calcite.rex.RexNode
+import org.apache.calcite.rex.{RexNode, RexUtil}
 
-import scala.jdk.CollectionConverters._
+import scala.jdk.CollectionConverters.*
 
 
 /**
@@ -24,11 +24,11 @@ class LazyFetchRule protected (config: RelRule.Config)
     config
   ) {
   override def onMatchHelper(call: RelOptRuleCall): RelNode =
-    val stitch = call.rel[LogicalStitch](0)
-    (call.rel[RelNode](1), call.rel[RelNode](2)) match
-      case (left: LateColumnScan, right) => LogicalFetch(right, left.deriveRowType, left.getColumn, None)
-      case (left, right: LateColumnScan) => LogicalFetch(left, right.deriveRowType, right.getColumn, None)
+    val (input, column) = (call.rel[RelNode](1), call.rel[RelNode](2)) match
+      case(left, right: LateColumnScan) => (left, right)
+      case (left: LateColumnScan, right) => (right, left)
       case _ => throw InvalidRelException("🚩 Expected a LateColumnScan as a child of Stitch, but none were found.")
+    LogicalFetch(input, column.deriveRowType, column.getColumn, None)
 }
 
 object LazyFetchRule {
