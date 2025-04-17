@@ -47,7 +47,7 @@ class Sort protected (
   }
 
   // A min heap (i.e. a priority queue with the reverse order) to sort the input
-  private var queue = mutable.PriorityQueue.empty[Tuple](TupleOrder.reverse)
+  private val queue = mutable.PriorityQueue.empty[Tuple](TupleOrder.reverse)
   private var index = 0
 
   /**
@@ -55,7 +55,7 @@ class Sort protected (
     */
   override def open(): Unit =
     input.open()
-    queue = queue.empty // For the sake of correctness
+    queue.clear()
     queue addAll input.drop(offset getOrElse 0)
     index = 0
 
@@ -73,6 +73,6 @@ class Sort protected (
     */
   override def close(): Unit =
     index = 0
-    queue = queue.empty
+    queue.clear()
     input.close()
 }

@@ -22,13 +22,11 @@ class LazyFetchProjectRule protected (config: RelRule.Config)
   ) {
 
   override def onMatchHelper(call: RelOptRuleCall): RelNode =
-    val stitch = call.rel[LogicalStitch](0)
-    (call.rel[RelNode](1), call.rel[RelNode](2), call.rel[RelNode](3)) match
-      case (project: LogicalProject, scan: LateColumnScan, input) =>
-        LogicalFetch(input, scan.deriveRowType, scan.getColumn, Some(project.getProjects))
-      case (input, project: LogicalProject, scan: LateColumnScan) =>
-        LogicalFetch(input, scan.deriveRowType, scan.getColumn, Some(project.getProjects))
+    val (project, scan, input) = (call.rel[RelNode](1), call.rel[RelNode](2), call.rel[RelNode](3)) match
+      case (project: LogicalProject, scan: LateColumnScan, input) => (project, scan, input)
+      case (input, project: LogicalProject, scan: LateColumnScan) => (project, scan, input)
       case _ => throw InvalidRelException("🚩 Expected a LateColumnScan as a child of Stitch, but none were found.")
+    LogicalFetch(input, scan.deriveRowType, scan.getColumn, Some(project.getProjects))
 }
 
 object LazyFetchProjectRule {

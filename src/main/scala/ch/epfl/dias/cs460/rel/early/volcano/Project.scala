@@ -37,7 +37,7 @@ class Project protected (
     * @inheritdoc
     */
   override def next(): Option[Tuple] =
-    input.next().map(evaluator)
+    input.next() map evaluator
 
   /**
     * @inheritdoc

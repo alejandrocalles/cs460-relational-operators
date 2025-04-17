@@ -25,7 +25,10 @@ class LazyFetchRule protected (config: RelRule.Config)
   ) {
   override def onMatchHelper(call: RelOptRuleCall): RelNode =
     val (input, column) = (call.rel[RelNode](1), call.rel[RelNode](2)) match
-      case(left, right: LateColumnScan) => (left, right)
+      // It's important that we match a column on the right before matching a column on the left
+      // because, when matching two columns, the specification expects the right one to be
+      // the one that has to be fetched.
+      case (left, right: LateColumnScan) => (left, right)
       case (left: LateColumnScan, right) => (right, left)
       case _ => throw InvalidRelException("🚩 Expected a LateColumnScan as a child of Stitch, but none were found.")
     LogicalFetch(input, column.deriveRowType, column.getColumn, None)

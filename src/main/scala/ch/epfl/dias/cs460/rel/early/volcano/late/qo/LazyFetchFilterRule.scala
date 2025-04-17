@@ -23,16 +23,13 @@ class LazyFetchFilterRule protected (config: RelRule.Config)
   ) {
 
   override def onMatchHelper(call: RelOptRuleCall): RelNode =
-    // TODO: filter doesn't seem to be constructed in the proper way. How to ensure the condition applies to the new columns?
-    val stitch = call.rel[LogicalStitch](0)
-    (call.rel[RelNode](1), call.rel[RelNode](2), call.rel[RelNode](3)) match
-      case (filter: LogicalFilter, scan: LateColumnScan, input) =>
-        val shiftedCondition = RexUtil.shift(filter.getCondition, scan.getColumn.getColumnIndex)
-        filter.copy(filter.getTraitSet, LogicalFetch(input, scan.deriveRowType, scan.getColumn, None), shiftedCondition)
-      case (input, filter: LogicalFilter, scan: LateColumnScan) =>
-        val shiftedCondition = RexUtil.shift(filter.getCondition, scan.getColumn.getColumnIndex)
-        filter.copy(filter.getTraitSet, LogicalFetch(input, scan.deriveRowType, scan.getColumn, None), shiftedCondition)
-      case _ => throw InvalidRelException("🚩 Expected a LateColumnScan as a child of Stitch, but none were found.")
+    val (filter, scan, input) = (call.rel[RelNode](1), call.rel[RelNode](2), call.rel[RelNode](3)) match
+      case (filter: LogicalFilter, scan: LateColumnScan, input) => (filter, scan, input)
+      case (input, filter: LogicalFilter, scan: LateColumnScan) => (filter, scan, input)
+      case _ => throw InvalidRelException("🚩 Expected a Filter as a child of Stitch, but none were found.")
+    // The filter is on the standalone column, so we have to shift it to refer to place where the column will be inserted.
+    val shiftedCondition = RexUtil.shift(filter.getCondition, scan.getColumn.getColumnIndex)
+    filter.copy(filter.getTraitSet, LogicalFetch(input, scan.deriveRowType, scan.getColumn, None), shiftedCondition)
 }
 
 object LazyFetchFilterRule {

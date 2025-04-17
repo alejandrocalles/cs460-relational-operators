@@ -36,12 +36,8 @@ class Filter protected (
     * @inheritdoc
     */
   override def next(): Option[Tuple] =
-    var result = Option.empty[Tuple]
-    while
-      result = input.next()
-      result exists (!predicate(_))
-    do ()
-    result
+    val iterator = LazyList continually input.next() takeWhile(_.isDefined) map (_.get) filter predicate
+    iterator.headOption
 
   /**
     * @inheritdoc

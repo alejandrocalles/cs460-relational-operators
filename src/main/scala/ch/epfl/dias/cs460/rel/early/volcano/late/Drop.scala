@@ -29,9 +29,7 @@ class Drop protected(
     * @inheritdoc
     */
   override def next(): Option[Tuple] =
-    input.next() match
-      case Some(LateTuple(vid, value)) => Some(value)
-      case None => None
+    input.next() map { lateTuple => lateTuple.value }
 
   /**
     * @inheritdoc
